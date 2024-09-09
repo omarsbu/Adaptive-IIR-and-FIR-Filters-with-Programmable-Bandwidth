@@ -1,1 +1,85 @@
+----------------------------------------------------------------------------------
+-- DDS Sinc Generator
+----------------------------------------------------------------------------------
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.all;
 
+entity variable_fir_filter is
+	generic (
+	   out_WIDTH : positive := 16;   -- output sinusoid width (IP CORE fixed at 16 bits)
+	   pacc_WIDTH : positive := 16;  -- phase accumulator width (IP CORE fixed at 16 bits) 
+	   cnt_WIDTH : positive;         -- phase accumulator counter width
+	   pinc_WIDTH : positive         -- phase increment width -> same as counter
+	);
+	 port(
+		 clk : in std_logic;	
+		 reset : in std_logic;					                
+		 freq_value : in std_logic_vector(cnt_WIDTH - 1 downto 0);    -- Selects output frequency (phase increment)
+		 phase_offset : in std_logic_vector(cnt_width - 1 downto 0);  -- Selects phase offset from 0 degrees
+		 load_freq : in std_logic;                                    -- Pulse to load new frequency (or phase offset)
+		 phase_out : out std_logic_vector(pacc_WIDTH - 1 downto 0);   -- Internal phase accumulator output
+		 phase_count : out std_logic_vector(cnt_WIDTH -1 downto 0);   -- Internal phase accumulator counter output
+		 sinc_out : out std_logic_vector(out_WIDTH - 1 downto 0);     -- Output sine signal
+		 );
+end variable_fir_filter;
+
+architecture structural of variable_fir_filter is 
+  -- Internal Signals
+  signal sine_wave, cosine_wave : signed(data_WIDTH - 1 downto 0);
+  signal dividend, divisor : unsigned(2*data_WIDTH - 1 downto 0)
+  signal up_down : std_logic;
+begin		 
+
+    U0: entity DDS_SIN_COS_GENERATOR
+    generic map(out_WIDTH => out_WIDTH, pacc_WIDTH => pacc_WIDTH, cnt_WIDTH => cnt_WIDTH, pinc_WIDTH => pinc_WIDTH)
+    port map(
+        clk => clk,	
+        reset => reset,					                
+        freq_value => freq_value,
+        phase_offset => phase_offset,
+        load_freq => load_freq,
+        phase_out => phase_out,
+        phase_count => phase_count, 
+        sine_out => sine_wave,
+        cosine_out => cosine_wave,
+        M_AXIS_tvalid => M_AXIS_tvalid,
+        S_AXIS_tvalid => S_AXIS_tvalid
+    );
+
+    dividend <= unsigned(resize(sine_wave, 2*data_WIDTH));
+
+    process(clk)
+      variable max : unsigned (2*data_WIDTH - 1 downto 0) := (others => '1');
+      variable min : unsigned (2*data_WIDTH - 1 downto 0) := (others => '0');
+    begin
+      if reset = '1' then
+        divisor <= unsigned(resize(phase_offset, 2*data_WIDTH));
+        up_down <= '0';  -- count up
+      else 
+        max := max - unsigned(resize(freq_value, 2*data_WIDTH));
+        min := min + unsigned(resize(freq_value, 2*data_WIDTH));
+        
+        if up_down = '0' then
+          if divisor >= max then 
+            up_down <= '1';  -- begin counting down
+          else
+            divisor <= divisor + unsigned(resize(freq_value, 2*data_WIDTH));
+          end if;
+        else
+          if divisor <= min then 
+            up_down <= '0';  -- begin counting up
+          else;
+            divisor <= divisor - unsigned(resize(freq_value, 2*data_WIDTH));
+          end if;
+        end if;
+    
+    sinc_out   
+              
+    
+    
+    
+    
+end DDS_SIN_COS_GENERATOR;
+end structural;
