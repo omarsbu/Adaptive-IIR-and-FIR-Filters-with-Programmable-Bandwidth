@@ -6,7 +6,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.all;
 
-entity variable_fir_filter is
+entity DDS_SINC_GENERATOR is
 	generic (
 	   out_WIDTH : positive := 16;   -- output sinusoid width (IP CORE fixed at 16 bits)
 	   pacc_WIDTH : positive := 16;  -- phase accumulator width (IP CORE fixed at 16 bits) 
@@ -23,12 +23,14 @@ entity variable_fir_filter is
 		 phase_count : out std_logic_vector(cnt_WIDTH -1 downto 0);   -- Internal phase accumulator counter output
 		 sinc_out : out std_logic_vector(out_WIDTH - 1 downto 0);     -- Output sine signal
 		 );
-end variable_fir_filter;
+end DDS_SINC_GENERATOR;
 
-architecture structural of variable_fir_filter is 
+architecture structural of DDS_SINC_GENERATOR is 
   -- Internal Signals
   signal sine_wave, cosine_wave : signed(data_WIDTH - 1 downto 0);
-  signal dividend, divisor : unsigned(2*data_WIDTH - 1 downto 0)
+  signal dividend : signed(2*data_WIDTH - 1 downto 0);
+  signal divisor :  signed(2*data_WIDTH - 1 downto 0);
+
   signal up_down : std_logic;
 begin		 
 
@@ -75,11 +77,6 @@ begin
           end if;
         end if;
     
-    sinc_out   
-              
-    
-    
-    
-    
-end DDS_SIN_COS_GENERATOR;
+    sinc_out <= resize((dividend / divisor), data_WIDTH);
+end DDS_SINC_GENERATOR;
 end structural;
