@@ -28,10 +28,9 @@ end DDS_SINC_GENERATOR;
 architecture structural of DDS_SINC_GENERATOR is 
   -- Internal Signals
   signal sine_wave, cosine_wave : signed(data_WIDTH - 1 downto 0);
-  signal dividend : signed(2*data_WIDTH - 1 downto 0);
-  signal divisor :  signed(2*data_WIDTH - 1 downto 0);
-
-  signal up_down : std_logic;
+  signal phase : unsigned (pacc_WIDTH - 1 downto 0);
+  signal dividend, divisor : integer;
+  signal down : std_logic;
 begin		 
 
     U0: entity DDS_SIN_COS_GENERATOR
@@ -50,30 +49,32 @@ begin
         S_AXIS_tvalid => S_AXIS_tvalid
     );
 
-    dividend <= unsigned(resize(sine_wave, 2*data_WIDTH));
+    phase <= not phase_out when down = '1', else phase_out;
+
+    dividend <= to_integer(sine_wave);
+    divisor <= to_integer(phase_count);
 
     process(clk)
-      variable max : unsigned (2*data_WIDTH - 1 downto 0) := (others => '1');
-      variable min : unsigned (2*data_WIDTH - 1 downto 0) := (others => '0');
+      variable max, min, inc : integer;
     begin
       if reset = '1' then
-        divisor <= unsigned(resize(phase_offset, 2*data_WIDTH));
+        divisor <= to_integer(unsigned(resize(phase_offset, 2*data_WIDTH)));
         up_down <= '0';  -- count up
       else 
-        max := max - unsigned(resize(freq_value, 2*data_WIDTH));
-        min := min + unsigned(resize(freq_value, 2*data_WIDTH));
-        
-        if up_down = '0' then
+        inc := to_integer(unsigned(resize(freq_value, 2*data_WIDTH)));
+        max := 2**data_WIDTH - inc;
+        min := 0 + inc;
+		
           if divisor >= max then 
             up_down <= '1';  -- begin counting down
           else
-            divisor <= divisor + unsigned(resize(freq_value, 2*data_WIDTH));
+            divisor <= divisor + inc;
           end if;
         else
           if divisor <= min then 
             up_down <= '0';  -- begin counting up
           else;
-            divisor <= divisor - unsigned(resize(freq_value, 2*data_WIDTH));
+            divisor <= not divisor 
           end if;
         end if;
     
