@@ -28,7 +28,7 @@ end DDS_SINC_GENERATOR;
 architecture structural of DDS_SINC_GENERATOR is 
   -- Internal Signals
   signal sine_wave, cosine_wave : signed(data_WIDTH - 1 downto 0);
-  signal phase : unsigned (pacc_WIDTH - 1 downto 0);
+  signal phase : unsigned (cnt_WIDTH - 1 downto 0);
   signal dividend, divisor : integer;
   signal down : std_logic;
 begin		 
@@ -42,42 +42,34 @@ begin
         phase_offset => phase_offset,
         load_freq => load_freq,
         phase_out => phase_out,
-        phase_count => phase_count, 
+        phase_count => phase,	-- Use phase counter as divisor: sinc(x) = sin(x)/x 
         sine_out => sine_wave,
         cosine_out => cosine_wave,
         M_AXIS_tvalid => M_AXIS_tvalid,
         S_AXIS_tvalid => S_AXIS_tvalid
     );
 
-    phase <= not phase_out when down = '1', else phase_out;
-
-    dividend <= to_integer(sine_wave);
-    divisor <= to_integer(phase_count);
+    dividend <= to_integer(sine_wave);	-- Treat sine wave value as integer
+    divisor <= to_integer(phase_count);	-- Treat sine phase as integer
 
     process(clk)
       variable max, min, inc : integer;
     begin
       if reset = '1' then
-        divisor <= to_integer(unsigned(resize(phase_offset, 2*data_WIDTH)));
         up_down <= '0';  -- count up
       else 
         inc := to_integer(unsigned(resize(freq_value, 2*data_WIDTH)));
-        max := 2**data_WIDTH - inc;
-        min := 0 + inc;
-		
+        max := 2**(data_WIDTH - 1) - inc;	-- max phase count before overflow
+        min := 0 + inc;				-- min phase
+
           if divisor >= max then 
-            up_down <= '1';  -- begin counting down
-          else
-            divisor <= divisor + inc;
+            up_down <= not up_down;	-- Reverse counter before overflow
           end if;
-        else
-          if divisor <= min then 
-            up_down <= '0';  -- begin counting up
-          else;
-            divisor <= not divisor 
-          end if;
-        end if;
-    
-    sinc_out <= resize((dividend / divisor), data_WIDTH);
+		  
+    	if up_down = '0' then
+	    dividend <= 2**(data_WIDTH - 1) - dividend;	  -- Reverse counter value
+	end if;
+    end process;
+    sinc_out <= std_logic_vector(unsigned(resize((dividend / divisor), data_WIDTH)));
 end DDS_SINC_GENERATOR;
 end structural;
