@@ -71,7 +71,9 @@ begin
 	    dividend <= 2**(data_WIDTH - 1) - dividend;	  -- Reverse counter value
 	end if;
     end process;
-
+	
+    phase_count <= divisor;
+		  
     -- sinc(x) = sin(x)/x and then convert back to std_logic_vector 
     sinc_out <= std_logic_vector(unsigned(resize((dividend / divisor), data_WIDTH)));
 end DDS_SINC_GENERATOR;
