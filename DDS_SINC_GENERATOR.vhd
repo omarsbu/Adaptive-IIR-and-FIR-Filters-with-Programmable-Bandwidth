@@ -33,6 +33,7 @@ architecture structural of DDS_SINC_GENERATOR is
   signal down : std_logic;
 begin		 
 
+    -- Intantiate Sin/Cos Generator
     U0: entity DDS_SIN_COS_GENERATOR
     generic map(out_WIDTH => out_WIDTH, pacc_WIDTH => pacc_WIDTH, cnt_WIDTH => cnt_WIDTH, pinc_WIDTH => pinc_WIDTH)
     port map(
@@ -48,7 +49,7 @@ begin
         M_AXIS_tvalid => M_AXIS_tvalid,
         S_AXIS_tvalid => S_AXIS_tvalid
     );
-
+	
     dividend <= to_integer(sine_wave);	-- Treat sine wave value as integer
     divisor <= to_integer(phase_count);	-- Treat sine phase as integer
 
@@ -70,6 +71,8 @@ begin
 	    dividend <= 2**(data_WIDTH - 1) - dividend;	  -- Reverse counter value
 	end if;
     end process;
+
+    -- sinc(x) = sin(x)/x and then convert back to std_logic_vector 
     sinc_out <= std_logic_vector(unsigned(resize((dividend / divisor), data_WIDTH)));
 end DDS_SINC_GENERATOR;
 end structural;
