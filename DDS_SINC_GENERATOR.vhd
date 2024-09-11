@@ -21,16 +21,16 @@ entity DDS_SINC_GENERATOR is
 		 load_freq : in std_logic;                                    -- Pulse to load new frequency (or phase offset)
 		 phase_out : out std_logic_vector(pacc_WIDTH - 1 downto 0);   -- Internal phase accumulator output
 		 phase_count : out std_logic_vector(cnt_WIDTH -1 downto 0);   -- Internal phase accumulator counter output
-		 sinc_out : out std_logic_vector(out_WIDTH - 1 downto 0);     -- Output sine signal
+		 sinc_out : out std_logic_vector(out_WIDTH - 1 downto 0)     -- Output sine signal
 		 );
 end DDS_SINC_GENERATOR;
 
 architecture structural of DDS_SINC_GENERATOR is 
   -- Internal Signals
-  signal sine_wave, cosine_wave : signed(data_WIDTH - 1 downto 0);
-  signal phase : unsigned (cnt_WIDTH - 1 downto 0);
-  signal dividend, divisor : integer;
-  signal down : std_logic;
+  signal sine_wave, cosine_wave : std_logic_vector(out_WIDTH - 1 downto 0);
+  signal phase : std_logic_vector (cnt_WIDTH - 1 downto 0);
+  signal dividend, divisor, quotient : integer;
+  signal up_down : std_logic;
 begin		 
 
     -- Intantiate Sin/Cos Generator
@@ -46,12 +46,12 @@ begin
         phase_count => phase,	-- Use phase counter as divisor: sinc(x) = sin(x)/x 
         sine_out => sine_wave,
         cosine_out => cosine_wave,
-        M_AXIS_tvalid => M_AXIS_tvalid,
-        S_AXIS_tvalid => S_AXIS_tvalid
+        M_AXIS_tvalid => open,
+        S_AXIS_tvalid => '1'
     );
 	
-    dividend <= to_integer(sine_wave);	-- Treat sine wave value as integer
-    divisor <= to_integer(phase_count);	-- Treat sine phase as integer
+    dividend <= to_integer(signed(sine_wave));	-- Treat sine wave value as integer
+    divisor <= to_integer(unsigned(phase));	-- Treat sine phase as integer
 
     process(clk)
       variable max, min, inc : integer;
@@ -59,8 +59,8 @@ begin
       if reset = '1' then
         up_down <= '0';  -- count up
       else 
-        inc := to_integer(unsigned(resize(freq_value, 2*data_WIDTH)));
-        max := 2**(data_WIDTH - 1) - inc;	-- max phase count before overflow
+        inc := to_integer(unsigned(freq_value));
+        max := 2**(cnt_WIDTH - 1) - inc;	-- max phase count before overflow
         min := 0 + inc;				-- min phase
 
           if divisor >= max then 
@@ -68,13 +68,15 @@ begin
           end if;
 		  
     	if up_down = '0' then
-	    dividend <= 2**(data_WIDTH - 1) - dividend;	  -- Reverse counter value
+	       dividend <= 2**(cnt_WIDTH - 1) - dividend;	  -- Reverse counter value
+	    end if;
 	end if;
+	
+	quotient <= dividend / divisor;
     end process;
 	
-    phase_count <= divisor;
+    phase_count <= std_logic_vector(to_unsigned(divisor,cnt_WIDTH));
 		  
     -- sinc(x) = sin(x)/x and then convert back to std_logic_vector 
-    sinc_out <= std_logic_vector(unsigned(resize((dividend / divisor), data_WIDTH)));
-end DDS_SINC_GENERATOR;
+    sinc_out <= std_logic_vector(to_unsigned(quotient, out_WIDTH));
 end structural;
